@@ -1,0 +1,17 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.putRoutes = void 0;
+const express_1 = require("express");
+const auth_1 = require("../controllers/auth");
+const documentos_1 = require("../controllers/documentos");
+const programas_1 = require("../controllers/programas");
+const usuarios_1 = require("../controllers/usuarios");
+const session_1 = require("../http/session");
+const upload_1 = require("../http/upload");
+exports.putRoutes = (0, express_1.Router)();
+exports.putRoutes.put('/usuarios/:id', (0, session_1.requiereRol)('ADM'), usuarios_1.editar);
+exports.putRoutes.put('/alumnos/me/perfil', (0, session_1.requiereRol)('ALU'), auth_1.actualizarPerfil);
+exports.putRoutes.put('/programas/:id', (0, session_1.requiereRol)('JSS'), programas_1.editarInterno);
+exports.putRoutes.put('/propuestas/:id/revision', (0, session_1.requiereRol)('JSS'), programas_1.revisarExterno);
+exports.putRoutes.put('/documentos/:id/revision', (0, session_1.requiereRol)('JSS'), documentos_1.revisar);
+exports.putRoutes.put('/plantillas', (0, session_1.requiereRol)('JSS'), upload_1.adjuntar, documentos_1.cargarPlantilla);

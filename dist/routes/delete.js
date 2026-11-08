@@ -1,0 +1,10 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.deleteRoutes = void 0;
+const express_1 = require("express");
+const programas_1 = require("../controllers/programas");
+const usuarios_1 = require("../controllers/usuarios");
+const session_1 = require("../http/session");
+exports.deleteRoutes = (0, express_1.Router)();
+exports.deleteRoutes.delete('/usuarios/:id', (0, session_1.requiereRol)('ADM'), usuarios_1.baja);
+exports.deleteRoutes.delete('/programas/:id', (0, session_1.requiereRol)('JSS'), programas_1.archivarInterno);
