@@ -2,7 +2,7 @@ name: Deployment-pipeline
 on:
   push:
     branches:
-      - develop
+      - main
 jobs:
   build-and-push:
     # Runner machine hosted by github
