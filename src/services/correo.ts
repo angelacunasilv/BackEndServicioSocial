@@ -14,7 +14,7 @@ export async function enviarRecuperacion(correo: string, token: string) {
 
   const { error } = await resend.emails.send({
     from: env.MAIL_FROM,
-    to: "angelsilvaaac@gmail.com",
+    to: correo,
     subject: 'Recuperación de contraseña de Servicio Social',
     text: 'Abre este enlace para cambiar tu contraseña. Vence en 30 minutos y se puede usar una sola vez.\n\n' + url,
   });

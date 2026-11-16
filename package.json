@@ -11,7 +11,7 @@
     "db:migrate": "node dist/scripts/migrate.js",
     "db:admin": "node dist/scripts/admin.js"
   },
-  "type": "module",
+  "type": "commonjs",
   "dependencies": {
     "connect-pg-simple": "^10.0.0",
     "cors": "^2.8.6",
