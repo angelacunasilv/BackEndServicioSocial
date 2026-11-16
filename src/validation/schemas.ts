@@ -55,7 +55,7 @@ export const confirmarBaja = z.strictObject({ confirmar: z.literal(true, { error
 const datosPrograma = {
   area: texto(160), nombreTitular: texto(160), puestoTitular: texto(160),
   nombreResponsable: texto(160), puestoResponsable: texto(160),
-  actividades: texto(4000), telefono, correo, domicilio: texto(300),
+  actividades: texto(4000), telefono, correo: correoInstitucional, domicilio: texto(300),
 };
 export const programaInterno = z.strictObject({
   ...datosPrograma, nombreProyecto: texto(200), objetivo: texto(2000),

@@ -43,7 +43,8 @@ export async function recuperar(req: Request, res: Response) {
   });
   try {
     await enviarRecuperacion(correo, token);
-  } catch {
+  } catch (error) {
+    console.error('Falló el envío del correo de recuperación:', error instanceof Error ? error.message : 'Error desconocido del proveedor de correo');
     await Recuperaciones.destroy({ where: { usuarioId, hash } });
     throw new ApiError(503, 'CORREO_NO_DISPONIBLE', 'No fue posible enviar el correo de recuperación');
   }

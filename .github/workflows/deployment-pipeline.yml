@@ -1,0 +1,82 @@
+name: Deployment-pipeline
+on:
+  push:
+    branches:
+      - develop
+jobs:
+  build-and-push:
+    # Runner machine hosted by github
+    runs-on: ubuntu-22.04
+    steps:
+      # Get into the directory
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # Install project dependencies
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Copy .env file
+        run: cp .env.example .env
+
+      # Run tests (removes failure if no test script is configured yet)
+      - name: Run Tests
+        run: npm test --if-present
+
+      # Log into docker hub (Angel main account)
+      - name: Log into docker
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERNAME }}
+          password: ${{ secrets.DOCKERPASSWORD }}
+
+      # Build the image for production
+      - name: Build the image for production
+        run: docker build -t back:stable .
+
+      # Tag the image for push into docker hub
+      - name: Tag the image for pushing into docker hub
+        run: docker tag back:stable ${{ vars.DOCKERNAME }}/servicio:back
+
+      - name: Push the image
+        run: docker push ${{ vars.DOCKERNAME }}/servicio:back
+
+  deploy:
+    runs-on: ubuntu-22.04
+    needs: build-and-push
+    steps:
+      - name: Install cloudflared
+        run: |
+          curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+          sudo dpkg -i cloudflared.deb
+
+      - name: Set up SSH over Cloudflare Tunnel
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSHPRIVATEKEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          
+          cat << 'EOF' > ~/.ssh/config
+          Host ${{ secrets.SSH_HOST }}
+            HostName ${{ secrets.SSH_HOST }}
+            User ${{ secrets.SSH_USER }}
+            IdentityFile ~/.ssh/id_ed25519
+            ProxyCommand /usr/local/bin/cloudflared access ssh --hostname %h
+            StrictHostKeyChecking accept-new
+          EOF
+          chmod 600 ~/.ssh/config
+
+      - name: Deploy to server
+        run: |
+          ssh -v "${{ secrets.SSH_HOST }}" << 'EOF'
+            cd /srv/servicio/
+            docker compose pull
+            docker compose up -d
+            # Si usas Sequelize o algún ORM en Express y necesitas correr migraciones, descomenta la línea de abajo:
+            # docker exec servicioback npx sequelize-cli db:migrate
+          EOF

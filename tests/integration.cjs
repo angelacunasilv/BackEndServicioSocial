@@ -5,6 +5,7 @@ const { loadEnvFile } = require('node:process');
 const { randomBytes } = require('node:crypto');
 const { spawn, spawnSync } = require('node:child_process');
 const { once } = require('node:events');
+const http = require('node:http');
 const net = require('node:net');
 const { Client } = require('pg');
 const { PDFDocument } = require('pdf-lib');
@@ -21,6 +22,24 @@ test('Servicio social: flujos, persistencia, permisos y concurrencia', { timeout
   let requests = 0;
   const sessions = {};
   const users = {};
+  const emailMessages = [];
+  const mockResend = http.createServer((req, res) => {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      if (req.url === '/emails' && req.method === 'POST') {
+        try { emailMessages.push(JSON.parse(body)); } catch {}
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ id: 'msg_' + randomBytes(8).toString('hex') }));
+      } else {
+        res.writeHead(404).end();
+      }
+    });
+  });
+  mockResend.listen(0, '127.0.0.1');
+  await once(mockResend, 'listening');
+  const resendPort = mockResend.address().port;
+
   const listener = net.createServer();
   listener.listen(0, '127.0.0.1');
   await once(listener, 'listening');
@@ -29,9 +48,9 @@ test('Servicio social: flujos, persistencia, permisos y concurrencia', { timeout
   const origin = 'http://localhost:' + port;
   const base = 'http://127.0.0.1:' + port + '/api';
   const env = { ...process.env, NODE_ENV: 'test', PORT: String(port), DB_NAME: database,
-    SESSION_SECRET: randomBytes(48).toString('hex'), FRONTEND_URL: origin, INSTITUTIONAL_DOMAIN: 'example.edu',
-    SMTP_HOST: '127.0.0.1', SMTP_PORT: '1025', SMTP_SECURE: 'false', SMTP_USER: '', SMTP_PASSWORD: '',
-    ADMIN_ID: 'TEST_ADMIN', ADMIN_NAME: 'Administrador de prueba', ADMIN_EMAIL: 'admin@example.edu', ADMIN_PASSWORD: password };
+    SESSION_SECRET: randomBytes(48).toString('hex'), FRONTEND_URL: origin, INSTITUTIONAL_DOMAIN: 'culiacan.tecnm.mx',
+    RESEND_API_KEY: 're_test_key', RESEND_BASE_URL: 'http://127.0.0.1:' + resendPort, MAIL_FROM: 'onboarding@resend.dev',
+    ADMIN_ID: 'TEST_ADMIN', ADMIN_NAME: 'Administrador de prueba', ADMIN_EMAIL: 'admin@culiacan.tecnm.mx', ADMIN_PASSWORD: password };
 
   function script(filename) {
     const result = spawnSync(process.execPath, [filename], { env, encoding: 'utf8', windowsHide: true });
@@ -83,7 +102,7 @@ test('Servicio social: flujos, persistencia, permisos y concurrencia', { timeout
   }
   const contact = { area: 'Sistemas', nombreTitular: 'Titular de prueba', puestoTitular: 'Dirección',
     nombreResponsable: 'Responsable de prueba', puestoResponsable: 'Coordinación', actividades: 'Apoyo comunitario',
-    telefono: '6671234567', correo: 'contacto@example.edu', domicilio: 'Domicilio ficticio 123' };
+    telefono: '6671234567', correo: 'contacto@culiacan.tecnm.mx', domicilio: 'Domicilio ficticio 123' };
   const program = { ...contact, nombreProyecto: 'Apoyo tecnológico', objetivo: 'Apoyar a la comunidad',
     cupo: 1, horario: 'Lunes a viernes', periodo: '2026-2' };
   let programId;
@@ -111,7 +130,7 @@ test('Servicio social: flujos, persistencia, permisos y concurrencia', { timeout
     await t.test('UC17-19: alta, unicidad y conservación del último administrador', async () => {
       for (const [rol, id] of [['ALU', 'ALU_A'], ['ALU', 'ALU_B'], ['ALU', 'ALU_C'], ['JSS', 'JSS'], ['JDV', 'JDV']]) {
         const body = { identificador: id, nombreCompleto: 'Persona de prueba ' + id,
-          correo: id.toLowerCase() + '@example.edu', rol, contrasena: password };
+          correo: id.toLowerCase() + '@culiacan.tecnm.mx', rol, contrasena: password };
         const { result } = await request('TEST_ADMIN', 'POST', '/usuarios', body, 201);
         users[id] = result.datos;
         await request('TEST_ADMIN', 'POST', '/usuarios', body, 409);
@@ -216,7 +235,7 @@ test('Servicio social: flujos, persistencia, permisos y concurrencia', { timeout
       assert.equal(file.result.datos.estadoGlobal, 'TERMINADO');
     });
     await t.test('UC18-19: edición, cambio de rol, baja confirmada y reactivación', async () => {
-      const body = { identificador: 'TEMPORAL', nombreCompleto: 'Cuenta temporal', correo: 'temporal@example.edu', rol: 'ALU' };
+      const body = { identificador: 'TEMPORAL', nombreCompleto: 'Cuenta temporal', correo: 'temporal@culiacan.tecnm.mx', rol: 'ALU' };
       const created = await request('TEST_ADMIN', 'POST', '/usuarios', body, 201);
       assert.ok(created.result.contrasenaInicial?.length >= 12);
       const id = created.result.datos.id;
@@ -229,15 +248,13 @@ test('Servicio social: flujos, persistencia, permisos y concurrencia', { timeout
       await request('TEST_ADMIN', 'PUT', '/usuarios/' + id, { ...body, activo: true });
       await login('TEMPORAL', created.result.contrasenaInicial);
     });
-    await t.test('UC03: correo real en Mailpit, enlace de un uso y revocación de sesiones', async () => {
-      await request(null, 'POST', '/auth/recuperar', { correo: 'ausente@example.edu' }, 404);
-      const email = 'alu_c@example.edu';
+    await t.test('UC03: correo real con Resend, enlace de un uso y revocación de sesiones', async () => {
+      await request(null, 'POST', '/auth/recuperar', { correo: 'ausente@culiacan.tecnm.mx' }, 404);
+      const email = 'alu_c@culiacan.tecnm.mx';
       await request(null, 'POST', '/auth/recuperar', { correo: email });
-      const messages = await (await fetch('http://127.0.0.1:8025/api/v1/messages')).json();
-      const message = messages.messages.find(item => item.To.some(recipient => recipient.Address === email));
-      assert.ok(message, 'Mailpit debe recibir el correo');
-      const detail = await (await fetch('http://127.0.0.1:8025/api/v1/message/' + message.ID)).json();
-      const token = detail.Text.match(/token=([a-f0-9]{64})/)[1];
+      const message = emailMessages.find(item => item.to === email || (Array.isArray(item.to) && item.to.includes(email)));
+      assert.ok(message, 'Resend debe recibir la petición de correo');
+      const token = message.text.match(/token=([a-f0-9]{64})/)[1];
       const newPassword = 'Nueva-' + randomBytes(16).toString('hex');
       await request(null, 'POST', '/auth/restablecer', { token, contrasena: newPassword });
       await request(null, 'POST', '/auth/restablecer', { token, contrasena: newPassword }, 400);
@@ -255,6 +272,7 @@ test('Servicio social: flujos, persistencia, permisos y concurrencia', { timeout
     });
     t.diagnostic(requests + ' respuestas HTTP verificadas con base aislada; sin modificar ServicioSocial.');
   } finally {
+    mockResend.close();
     await stop();
     // Solo permite eliminar la base aleatoria que creó esta ejecución.
     if (/^servicio_social_test_[a-f0-9]{16}$/.test(database)) {

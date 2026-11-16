@@ -20,14 +20,10 @@ export const env = z.object({
   SESSION_SECRET: z.string().min(32),
   FRONTEND_URL: z.url({ protocol: /^https?$/ }).default('http://localhost:5173'),
   TRUST_PROXY_HOPS: z.coerce.number().int().min(0).default(0),
-  INSTITUTIONAL_DOMAIN: z.string().trim().toLowerCase().regex(/^(?:[a-z0-9-]+(?:\.[a-z0-9-]+)+)?$/, 'Configure un dominio sin @').default(''),
+  INSTITUTIONAL_DOMAIN: z.string().trim().toLowerCase().regex(/^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/, 'Configure un dominio sin @').default('culiacan.tecnm.mx'),
   INSTITUTION_NAME: z.string().trim().min(1).default('Tecnológico Nacional de México - Campus Culiacán'),
-  SMTP_HOST: z.string().min(1).default('127.0.0.1'),
-  SMTP_PORT: port.default(1025),
-  SMTP_SECURE: z.stringbool().default(false),
-  SMTP_USER: z.string().default(''),
-  SMTP_PASSWORD: z.string().default(''),
-  MAIL_FROM: z.string().min(1).default('servicio-social@localhost'),
+  RESEND_API_KEY: z.string().default(''),
+  MAIL_FROM: z.string().min(1).default('onboarding@resend.dev'),
   HOURS_REQUIRED: z.coerce.number().int().positive().default(480),
 }).superRefine((value, ctx) => {
   if (value.NODE_ENV === 'production' && !value.INSTITUTIONAL_DOMAIN) {
@@ -35,5 +31,8 @@ export const env = z.object({
   }
   if (value.NODE_ENV === 'production' && !value.FRONTEND_URL.startsWith('https://')) {
     ctx.addIssue({ code: 'custom', path: ['FRONTEND_URL'], message: 'Usa HTTPS en producción' });
+  }
+  if (value.NODE_ENV === 'production' && !value.RESEND_API_KEY) {
+    ctx.addIssue({ code: 'custom', path: ['RESEND_API_KEY'], message: 'Configure RESEND_API_KEY en producción' });
   }
 }).parse(process.env);

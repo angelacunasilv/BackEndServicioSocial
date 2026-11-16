@@ -19,7 +19,7 @@ async function iniciar() {
   }
 }
 iniciar().catch(async error => {
-  console.error('No se pudo iniciar la API:', error.name);
+  console.error('No se pudo iniciar la API:', error);
   await Promise.allSettled([db.close(), store.close()]);
   process.exitCode = 1;
 });

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { db } from '../config/database';
+import { env } from '../config/env';
 import * as auth from '../controllers/auth';
 import * as documentos from '../controllers/documentos';
 import * as expedientes from '../controllers/expedientes';
@@ -10,6 +11,9 @@ import { ApiError } from '../http/errors';
 import { requiereRol } from '../http/session';
 
 export const getRoutes = Router();
+getRoutes.get('/configuracion', (_req, res) => {
+  res.json({ datos: { dominioInstitucional: env.INSTITUTIONAL_DOMAIN, horasRequeridas: env.HOURS_REQUIRED } });
+});
 getRoutes.get('/salud', async (_req, res) => {
   try {
     await db.authenticate();
