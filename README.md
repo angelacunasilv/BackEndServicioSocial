@@ -212,8 +212,10 @@ con `docker compose down -v` también elimina la base de datos.
 
 Los esquemas Zod revisan los datos antes de realizar operaciones.
 
-- Al registrar o editar cuentas y contactos, el correo debe terminar
+- Al registrar o editar cuentas y contactos de programas internos, el correo debe terminar
   exactamente en `@culiacan.tecnm.mx`.
+- Las propuestas externas aceptan el correo de cualquier persona o institución,
+  siempre que tenga formato válido, con arroba y extensión de dominio.
 - Las contraseñas nuevas requieren entre 12 y 128 caracteres.
 - Los textos tienen límites y se rechazan caracteres de control.
 - Se validan teléfonos, enteros, cupos, horas y campos obligatorios.
@@ -256,7 +258,7 @@ Necesita PostgreSQL disponible con los datos de `.env` y permiso para crear
 bases. La prueba crea una base temporal y la elimina al terminar. No modifica
 la base `ServicioSocial` ni envía correos reales.
 
-La última verificación completó 13 pruebas y 98 respuestas HTTP. Comprueba
+La última verificación completó 13 pruebas y 105 respuestas HTTP. Comprueba
 roles, CSRF, CRUD, archivos, recuperación, constancias, persistencia de sesiones
 y dos alumnos compitiendo por el último cupo. `npm run build` revisa los tipos
 de TypeScript y genera el código de producción.

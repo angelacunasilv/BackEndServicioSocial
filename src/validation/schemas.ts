@@ -62,7 +62,7 @@ export const programaInterno = z.strictObject({
   cupo: entero(1, 100000, 'El cupo debe ser mayor a 0'),
   horario: texto(160), periodo: periodo.optional(),
 });
-export const programaExterno = z.strictObject({ ...datosPrograma, nombreEmpresa: texto(200) });
+export const programaExterno = z.strictObject({ ...datosPrograma, correo, nombreEmpresa: texto(200) });
 export const programaConsulta = z.strictObject({ ...paginacion, periodo: periodo.optional() });
 export const seleccion = z.strictObject({ folio: id });
 export const revision = z.strictObject({

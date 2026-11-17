@@ -128,6 +128,8 @@ test('Servicio social: flujos, persistencia, permisos y concurrencia', { timeout
       assert.equal(result.datos.passwordHash, undefined);
     });
     await t.test('UC17-19: alta, unicidad y conservación del último administrador', async () => {
+      await request('TEST_ADMIN', 'POST', '/usuarios', { identificador: 'EXTERNO', nombreCompleto: 'Cuenta de prueba',
+        correo: 'cuenta@example.org', rol: 'ALU', contrasena: password }, 400);
       for (const [rol, id] of [['ALU', 'ALU_A'], ['ALU', 'ALU_B'], ['ALU', 'ALU_C'], ['JSS', 'JSS'], ['JDV', 'JDV']]) {
         const body = { identificador: id, nombreCompleto: 'Persona de prueba ' + id,
           correo: id.toLowerCase() + '@culiacan.tecnm.mx', rol, contrasena: password };
@@ -178,14 +180,21 @@ test('Servicio social: flujos, persistencia, permisos y concurrencia', { timeout
       assert.equal(result.datos.perfil.telefono, '6671234567');
     });
     await t.test('UC05,07,12: rechazar con observaciones, corregir y aceptar propuesta', async () => {
-      const proposal = { ...contact, nombreEmpresa: 'Empresa ficticia' };
+      const proposal = { ...contact, correo: '  Contacto@Fundacion.org.mx  ', nombreEmpresa: 'Empresa ficticia' };
+      for (const correo of ['', 'invalido', 'contacto@fundacion', 'contacto.fundacion.org', 'contacto@@fundacion.org']) {
+        await request('ALU_C', 'POST', '/alumnos/me/propuesta', { ...proposal, correo }, 400);
+      }
       const first = await request('ALU_C', 'POST', '/alumnos/me/propuesta', proposal, 201);
+      assert.equal(first.result.datos.correo, 'contacto@fundacion.org.mx');
       await request('ALU_C', 'POST', '/alumnos/me/propuesta', proposal, 409);
       await request('JSS', 'PUT', '/propuestas/' + first.result.datos.id + '/revision', { estado: 'RECHAZADO' }, 400);
       await request('JSS', 'PUT', '/propuestas/' + first.result.datos.id + '/revision', { estado: 'RECHAZADO', observaciones: 'Ajustar actividades' });
       const own = await request('ALU_C', 'GET', '/alumnos/me/propuesta');
       assert.equal(own.result.datos.observaciones, 'Ajustar actividades');
-      const second = await request('ALU_C', 'POST', '/alumnos/me/propuesta', { ...proposal, actividades: 'Actividades corregidas' }, 201);
+      assert.equal(own.result.datos.correo, 'contacto@fundacion.org.mx');
+      const second = await request('ALU_C', 'POST', '/alumnos/me/propuesta',
+        fileBody({ ...proposal, correo: 'responsable@gmail.com', actividades: 'Actividades corregidas' }), 201);
+      assert.equal(second.result.datos.correo, 'responsable@gmail.com');
       await request('JSS', 'PUT', '/propuestas/' + second.result.datos.id + '/revision', { estado: 'ACEPTADO' });
       await request('ALU_C', 'GET', '/alumnos/me/expediente');
     });
@@ -249,6 +258,7 @@ test('Servicio social: flujos, persistencia, permisos y concurrencia', { timeout
       await login('TEMPORAL', created.result.contrasenaInicial);
     });
     await t.test('UC03: correo real con Resend, enlace de un uso y revocación de sesiones', async () => {
+      await request(null, 'POST', '/auth/recuperar', { correo: 'cuenta@example.org' }, 400);
       await request(null, 'POST', '/auth/recuperar', { correo: 'ausente@culiacan.tecnm.mx' }, 404);
       const email = 'alu_c@culiacan.tecnm.mx';
       await request(null, 'POST', '/auth/recuperar', { correo: email });

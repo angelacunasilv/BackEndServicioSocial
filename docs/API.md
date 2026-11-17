@@ -169,8 +169,9 @@ propuesta pendiente. La asignación crea el expediente y descuenta un cupo.
 
 `/api/alumnos/me/propuesta`, rol ALU, recibe `nombreEmpresa` y los datos
 de contacto del programa: área, titular, responsable, puestos, actividades,
-teléfono, correo institucional y domicilio. Puede llevar un PDF opcional
-usando multipart. La propuesta queda pendiente hasta su revisión.
+teléfono, correo de contacto y domicilio. El correo puede ser externo, por
+ejemplo `contacto@empresa.com`; debe tener arroba y una extensión de dominio.
+Puede llevar un PDF opcional usando multipart. La propuesta queda pendiente hasta su revisión.
 Una propuesta rechazada se puede corregir y reenviar como un nuevo registro.
 
 ### Entrega de documentos
